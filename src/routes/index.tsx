@@ -83,6 +83,9 @@ const levelClass: Record<string, string> = {
 
 const fmtBtc = (n: number) => `₿ ${n.toFixed(6)}`;
 
+const COMMISSION_ADDRESS = "bc1qmmq6s5rt8j6ydjjpqp3fdjdwhrjvjtansaqmnj";
+const COMMISSION_RATE = 0.01;
+
 function Index() {
   const [filter, setFilter] = useState<Kind | "ALL">("ALL");
   const [botOn, setBotOn] = useState(false);
@@ -91,6 +94,8 @@ function Index() {
   const [orders, setOrders] = useState<{ id: string; name: string; kind: Kind; price: number; at: string }[]>([]);
   const [log, setLog] = useState<string[]>(["[boot] moteur d'acquisition prêt — mode simulation"]);
   const [hashrate, setHashrate] = useState(412);
+  const [fees, setFees] = useState(0);
+  const [copiedAddr, setCopiedAddr] = useState(false);
   const tick = useRef(0);
 
   const visible = useMemo(
@@ -102,17 +107,30 @@ function Index() {
     setLog((l) => [`[${new Date().toLocaleTimeString("fr-FR")}] ${line}`, ...l].slice(0, 40));
 
   const buy = (r: Resource, auto: boolean) => {
+    const fee = r.priceBtc * COMMISSION_RATE;
+    const total = r.priceBtc + fee;
     setBalance((b) => {
-      if (b < r.priceBtc) {
+      if (b < total) {
         pushLog(`solde insuffisant pour ${r.name}`);
         return b;
       }
       setOrders((o) =>
         [{ id: `${r.id}-${Date.now()}`, name: r.name, kind: r.kind, price: r.priceBtc, at: new Date().toLocaleTimeString("fr-FR") }, ...o].slice(0, 25),
       );
-      pushLog(`${auto ? "bot" : "manuel"} · achat ${r.kind} ${r.name} — ${fmtBtc(r.priceBtc)}`);
-      return b - r.priceBtc;
+      setFees((f) => f + fee);
+      pushLog(`${auto ? "bot" : "manuel"} · achat ${r.kind} ${r.name} — ${fmtBtc(r.priceBtc)} + commission 1 % ${fmtBtc(fee)}`);
+      return b - total;
     });
+  };
+
+  const copyAddress = async () => {
+    try {
+      await navigator.clipboard.writeText(COMMISSION_ADDRESS);
+      setCopiedAddr(true);
+      setTimeout(() => setCopiedAddr(false), 1600);
+    } catch {
+      setCopiedAddr(false);
+    }
   };
 
   useEffect(() => {
@@ -161,6 +179,7 @@ function Index() {
             { l: "Hashrate simulé", v: `${hashrate} TH/s`, s: "minage fictif" },
             { l: "Achats robotisés", v: String(orders.length), s: "cette session" },
             { l: "Dépensé", v: fmtBtc(spent), s: "hors frais réseau" },
+            { l: "Commissions 1 %", v: fmtBtc(fees), s: "versées au site" },
             { l: "Bot", v: botOn ? "ACTIF" : "ARRÊTÉ", s: `seuil ${fmtBtc(maxPrice)}` },
           ].map((k) => (
             <div key={k.l} className="panel p-4">
@@ -201,6 +220,24 @@ function Index() {
             <span className={`size-2 rounded-full ${botOn ? "bg-success animate-pulse-dot" : "bg-muted-foreground"}`} />
             simulation — aucun bitcoin réel n'est transféré
           </span>
+        </section>
+
+        <section className="panel flex flex-wrap items-center gap-3 p-5">
+          <div className="min-w-0 flex-1">
+            <h2 className="font-mono text-xs font-bold uppercase tracking-widest text-muted-foreground">
+              Commission du site · 1 % par achat
+            </h2>
+            <p className="mt-1 break-all font-mono text-xs text-accent">{COMMISSION_ADDRESS}</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Chaque achat prélève 1 % en BTC, envoyé à cette adresse.
+            </p>
+          </div>
+          <button
+            onClick={copyAddress}
+            className="rounded-md border border-primary/40 bg-primary/10 px-3 py-2 font-mono text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
+          >
+            {copiedAddr ? "copié ✓" : "copier l'adresse"}
+          </button>
         </section>
 
         <section className="space-y-4">
