@@ -187,7 +187,8 @@ function Index() {
             { l: "Hashrate simulé", v: `${hashrate} TH/s`, s: "minage fictif" },
             { l: "Achats robotisés", v: String(orders.length), s: "cette session" },
             { l: "Dépensé", v: fmtBtc(spent), s: "hors frais réseau" },
-            { l: "Commissions 1 %", v: fmtBtc(fees), s: "versées au site" },
+            { l: "Commissions 1 %", v: fmtBtc(fees), s: `dont ${fmtBtc(feesMined)} minées` },
+            { l: "Reste dû", v: fmtBtc(feesOwed), s: "payable en minant" },
             { l: "Bot", v: botOn ? "ACTIF" : "ARRÊTÉ", s: `seuil ${fmtBtc(maxPrice)}` },
           ].map((k) => (
             <div key={k.l} className="panel p-4">
