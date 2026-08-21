@@ -272,6 +272,9 @@ function Index() {
           </div>
         </section>
 
+        <TermuxMiner />
+
+
         <section className="space-y-4">
           <div>
             <h2 className="font-mono text-xl font-bold">Inconvénients de l'IA</h2>
