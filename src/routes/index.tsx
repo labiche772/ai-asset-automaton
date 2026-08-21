@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { TermuxMiner } from "@/components/TermuxMiner";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -269,6 +271,9 @@ function Index() {
             )}
           </div>
         </section>
+
+        <TermuxMiner />
+
 
         <section className="space-y-4">
           <div>
