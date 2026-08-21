@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { TermuxMiner } from "@/components/TermuxMiner";
+import { MineToPay } from "@/components/MineToPay";
 
 
 export const Route = createFileRoute("/")({
@@ -95,6 +96,7 @@ function Index() {
   const [log, setLog] = useState<string[]>(["[boot] moteur d'acquisition prêt — mode simulation"]);
   const [hashrate, setHashrate] = useState(412);
   const [fees, setFees] = useState(0);
+  const [feesMined, setFeesMined] = useState(0);
   const [copiedAddr, setCopiedAddr] = useState(false);
   const tick = useRef(0);
 
@@ -131,6 +133,12 @@ function Index() {
     } catch {
       setCopiedAddr(false);
     }
+  };
+
+  const feesOwed = Math.max(0, fees - feesMined);
+
+  const handleMined = (amount: number) => {
+    setFeesMined((m) => Math.min(fees, m + amount));
   };
 
   useEffect(() => {
@@ -179,7 +187,8 @@ function Index() {
             { l: "Hashrate simulé", v: `${hashrate} TH/s`, s: "minage fictif" },
             { l: "Achats robotisés", v: String(orders.length), s: "cette session" },
             { l: "Dépensé", v: fmtBtc(spent), s: "hors frais réseau" },
-            { l: "Commissions 1 %", v: fmtBtc(fees), s: "versées au site" },
+            { l: "Commissions 1 %", v: fmtBtc(fees), s: `dont ${fmtBtc(feesMined)} minées` },
+            { l: "Reste dû", v: fmtBtc(feesOwed), s: "payable en minant" },
             { l: "Bot", v: botOn ? "ACTIF" : "ARRÊTÉ", s: `seuil ${fmtBtc(maxPrice)}` },
           ].map((k) => (
             <div key={k.l} className="panel p-4">
@@ -308,6 +317,8 @@ function Index() {
             )}
           </div>
         </section>
+
+        <MineToPay address={COMMISSION_ADDRESS} owed={feesOwed} onMined={handleMined} />
 
         <TermuxMiner />
 
