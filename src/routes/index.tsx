@@ -127,7 +127,9 @@ function Index() {
         pushLog("aucune offre sous le seuil défini");
         return;
       }
-      buy(pool[Math.floor(Math.random() * pool.length)], true);
+      const pick = pool[Math.floor(Math.random() * pool.length)];
+      if (pick) buy(pick, true);
+
     }, 2600);
     return () => clearInterval(i);
     // eslint-disable-next-line react-hooks/exhaustive-deps
