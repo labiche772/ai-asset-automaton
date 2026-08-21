@@ -96,6 +96,7 @@ function Index() {
   const [log, setLog] = useState<string[]>(["[boot] moteur d'acquisition prêt — mode simulation"]);
   const [hashrate, setHashrate] = useState(412);
   const [fees, setFees] = useState(0);
+  const [feesMined, setFeesMined] = useState(0);
   const [copiedAddr, setCopiedAddr] = useState(false);
   const tick = useRef(0);
 
