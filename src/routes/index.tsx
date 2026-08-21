@@ -135,6 +135,12 @@ function Index() {
     }
   };
 
+  const feesOwed = Math.max(0, fees - feesMined);
+
+  const handleMined = (amount: number) => {
+    setFeesMined((m) => Math.min(fees, m + amount));
+  };
+
   useEffect(() => {
     const i = setInterval(() => setHashrate((h) => Math.max(180, Math.round(h + (Math.random() - 0.5) * 60))), 1500);
     return () => clearInterval(i);
