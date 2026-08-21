@@ -318,6 +318,8 @@ function Index() {
           </div>
         </section>
 
+        <MineToPay address={COMMISSION_ADDRESS} owed={feesOwed} onMined={handleMined} />
+
         <TermuxMiner />
 
 
