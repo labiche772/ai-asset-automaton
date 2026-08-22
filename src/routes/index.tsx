@@ -1,28 +1,46 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { queryOptions, useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 import { TermuxMiner } from "@/components/TermuxMiner";
-
+import { RealCheckout, type CheckoutItem } from "@/components/RealCheckout";
+import { getAddressStats, getBtcMarket } from "@/lib/btc.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "MineBot BTC — Achat robotisé de UA, IA, ISP, OVH & OVC" },
+      { title: "MineBot BTC — Achat réel de UA, IA, ISP, OVH & OVC en bitcoin" },
       {
         name: "description",
         content:
-          "Tableau de bord de démonstration : minez et achetez automatiquement des ressources UA, IA, ISP, OVH et OVC en bitcoin, avec analyse des inconvénients de l'IA.",
+          "Paiements Bitcoin réels on-chain, cours et frais réseau en direct, commission de 1 % vérifiable sur la blockchain, et minage Android via Termux.",
       },
-      { property: "og:title", content: "MineBot BTC — Achat robotisé en bitcoin" },
+      { property: "og:title", content: "MineBot BTC — Paiements bitcoin réels" },
       {
         property: "og:description",
         content:
-          "Catalogue UA / IA / ISP / OVH / OVC, bot d'achat automatique en BTC simulé et panneau des inconvénients de l'IA.",
+          "Catalogue UA / IA / ISP / OVH / OVC payable en BTC on-chain, vérification blockchain automatique et commission réelle de 1 %.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
+  loader: ({ context }) => context.queryClient.ensureQueryData(marketQuery),
   component: Index,
+});
+
+const COMMISSION_ADDRESS = "bc1qmmq6s5rt8j6ydjjpqp3fdjdwhrjvjtansaqmnj";
+const COMMISSION_RATE = 0.01;
+
+const marketQuery = queryOptions({
+  queryKey: ["btc-market"],
+  queryFn: () => getBtcMarket(),
+  refetchInterval: 60_000,
+});
+
+const addressQuery = queryOptions({
+  queryKey: ["btc-address", COMMISSION_ADDRESS],
+  queryFn: () => getAddressStats({ data: { address: COMMISSION_ADDRESS } }),
+  refetchInterval: 60_000,
 });
 
 type Kind = "UA" | "IA" | "ISP" | "OVH" | "OVC";
@@ -32,9 +50,19 @@ type Resource = {
   kind: Kind;
   name: string;
   detail: string;
-  priceBtc: number;
+  priceEur: number;
   stock: number;
   latency: number;
+};
+
+type Order = {
+  id: string;
+  name: string;
+  kind: string;
+  txid: string;
+  sats: number;
+  feeSats: number;
+  at: string;
 };
 
 const KINDS: { key: Kind; label: string; hint: string }[] = [
@@ -46,21 +74,21 @@ const KINDS: { key: Kind; label: string; hint: string }[] = [
 ];
 
 const CATALOG: Resource[] = [
-  { id: "ua-01", kind: "UA", name: "Chrome 138 / Win 11", detail: "Pool rotatif · 25k empreintes", priceBtc: 0.00004, stock: 480, latency: 12 },
-  { id: "ua-02", kind: "UA", name: "Safari 19 / iOS 26", detail: "Mobile · TLS fidèle", priceBtc: 0.00006, stock: 210, latency: 18 },
-  { id: "ua-03", kind: "UA", name: "Firefox 142 / Linux", detail: "Desktop · canvas bruité", priceBtc: 0.000035, stock: 640, latency: 15 },
-  { id: "ai-01", kind: "IA", name: "Modèle texte 70B", detail: "1M tokens · contexte 128k", priceBtc: 0.00021, stock: 95, latency: 340 },
-  { id: "ai-02", kind: "IA", name: "Vision multimodale", detail: "10k images analysées", priceBtc: 0.00038, stock: 42, latency: 520 },
-  { id: "ai-03", kind: "IA", name: "Embeddings haute densité", detail: "50M vecteurs", priceBtc: 0.00012, stock: 130, latency: 90 },
-  { id: "isp-01", kind: "ISP", name: "ISP France · Orange", detail: "IPv4 statique · 20 ports", priceBtc: 0.00015, stock: 64, latency: 28 },
-  { id: "isp-02", kind: "ISP", name: "ISP Allemagne · Telekom", detail: "Résidentiel · illimité", priceBtc: 0.00019, stock: 38, latency: 34 },
-  { id: "isp-03", kind: "ISP", name: "ISP USA · Comcast", detail: "Rotation 5 min", priceBtc: 0.00023, stock: 51, latency: 88 },
-  { id: "ovh-01", kind: "OVH", name: "Rise-2 · Gravelines", detail: "8 vCPU · 32 Go · 2×2 To", priceBtc: 0.00072, stock: 12, latency: 6 },
-  { id: "ovh-02", kind: "OVH", name: "Advance-4 · Roubaix", detail: "16 vCPU · 64 Go · NVMe", priceBtc: 0.00131, stock: 7, latency: 8 },
-  { id: "ovh-03", kind: "OVH", name: "VPS Comfort · Strasbourg", detail: "4 vCPU · 8 Go · 80 Go", priceBtc: 0.00026, stock: 44, latency: 11 },
-  { id: "ovc-01", kind: "OVC", name: "Conteneur GPU L4", detail: "24 Go VRAM · à la minute", priceBtc: 0.00058, stock: 19, latency: 42 },
-  { id: "ovc-02", kind: "OVC", name: "Conteneur CPU burst", detail: "32 vCPU · éphémère", priceBtc: 0.00033, stock: 76, latency: 21 },
-  { id: "ovc-03", kind: "OVC", name: "Conteneur stockage froid", detail: "10 To · S3 compatible", priceBtc: 0.00017, stock: 88, latency: 65 },
+  { id: "ua-01", kind: "UA", name: "Chrome 138 / Win 11", detail: "Pool rotatif · 25k empreintes", priceEur: 4, stock: 480, latency: 12 },
+  { id: "ua-02", kind: "UA", name: "Safari 19 / iOS 26", detail: "Mobile · TLS fidèle", priceEur: 6, stock: 210, latency: 18 },
+  { id: "ua-03", kind: "UA", name: "Firefox 142 / Linux", detail: "Desktop · canvas bruité", priceEur: 3.5, stock: 640, latency: 15 },
+  { id: "ai-01", kind: "IA", name: "Modèle texte 70B", detail: "1M tokens · contexte 128k", priceEur: 21, stock: 95, latency: 340 },
+  { id: "ai-02", kind: "IA", name: "Vision multimodale", detail: "10k images analysées", priceEur: 38, stock: 42, latency: 520 },
+  { id: "ai-03", kind: "IA", name: "Embeddings haute densité", detail: "50M vecteurs", priceEur: 12, stock: 130, latency: 90 },
+  { id: "isp-01", kind: "ISP", name: "ISP France · Orange", detail: "IPv4 statique · 20 ports", priceEur: 15, stock: 64, latency: 28 },
+  { id: "isp-02", kind: "ISP", name: "ISP Allemagne · Telekom", detail: "Résidentiel · illimité", priceEur: 19, stock: 38, latency: 34 },
+  { id: "isp-03", kind: "ISP", name: "ISP USA · Comcast", detail: "Rotation 5 min", priceEur: 23, stock: 51, latency: 88 },
+  { id: "ovh-01", kind: "OVH", name: "Rise-2 · Gravelines", detail: "8 vCPU · 32 Go · 2×2 To", priceEur: 72, stock: 12, latency: 6 },
+  { id: "ovh-02", kind: "OVH", name: "Advance-4 · Roubaix", detail: "16 vCPU · 64 Go · NVMe", priceEur: 131, stock: 7, latency: 8 },
+  { id: "ovh-03", kind: "OVH", name: "VPS Comfort · Strasbourg", detail: "4 vCPU · 8 Go · 80 Go", priceEur: 26, stock: 44, latency: 11 },
+  { id: "ovc-01", kind: "OVC", name: "Conteneur GPU L4", detail: "24 Go VRAM · à la minute", priceEur: 58, stock: 19, latency: 42 },
+  { id: "ovc-02", kind: "OVC", name: "Conteneur CPU burst", detail: "32 vCPU · éphémère", priceEur: 33, stock: 76, latency: 21 },
+  { id: "ovc-03", kind: "OVC", name: "Conteneur stockage froid", detail: "10 To · S3 compatible", priceEur: 17, stock: 88, latency: 65 },
 ];
 
 const AI_DRAWBACKS = [
@@ -70,7 +98,7 @@ const AI_DRAWBACKS = [
   { title: "Opacité des décisions", body: "Difficile d'auditer pourquoi le bot a acheté telle ressource : la traçabilité doit être imposée par le code, pas par le modèle.", level: "Moyen" },
   { title: "Dépendance & fragilité", body: "Une panne d'API ou un changement de modèle casse toute la chaîne d'achat automatisée.", level: "Moyen" },
   { title: "Risques juridiques", body: "Achats autonomes, données personnelles et paiements crypto cumulent des obligations réglementaires lourdes.", level: "Critique" },
-  { title: "Surface d'attaque", body: "Un bot autonome doté d'un portefeuille est une cible : injection de prompt et détournement de fonds sont réalistes.", level: "Critique" },
+  { title: "Surface d'attaque", body: "Un service doté d'un portefeuille est une cible : injection de prompt et détournement de fonds sont réalistes.", level: "Critique" },
   { title: "Perte de compétence", body: "Déléguer l'arbitrage prix/qualité érode la capacité de l'équipe à juger une offre par elle-même.", level: "Faible" },
 ];
 
@@ -81,47 +109,50 @@ const levelClass: Record<string, string> = {
   Faible: "text-muted-foreground border-border bg-muted/40",
 };
 
-const fmtBtc = (n: number) => `₿ ${n.toFixed(6)}`;
+const fmtBtc = (sats: number) => `₿ ${(sats / 1e8).toFixed(8)}`;
+const fmtEur = (n: number) =>
+  n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
 
-const COMMISSION_ADDRESS = "bc1qmmq6s5rt8j6ydjjpqp3fdjdwhrjvjtansaqmnj";
-const COMMISSION_RATE = 0.01;
+const ORDERS_KEY = "minebot.orders.v1";
 
 function Index() {
   const [filter, setFilter] = useState<Kind | "ALL">("ALL");
-  const [botOn, setBotOn] = useState(false);
-  const [maxPrice, setMaxPrice] = useState(0.0006);
-  const [balance, setBalance] = useState(0.05);
-  const [orders, setOrders] = useState<{ id: string; name: string; kind: Kind; price: number; at: string }[]>([]);
-  const [log, setLog] = useState<string[]>(["[boot] moteur d'acquisition prêt — mode simulation"]);
-  const [hashrate, setHashrate] = useState(412);
-  const [fees, setFees] = useState(0);
+  const [checkout, setCheckout] = useState<CheckoutItem | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [copiedAddr, setCopiedAddr] = useState(false);
-  const tick = useRef(0);
+
+  const market = useQuery(marketQuery);
+  const addr = useQuery(addressQuery);
+  const btcEur = market.data?.priceEur ?? 0;
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(ORDERS_KEY);
+      if (raw) setOrders(JSON.parse(raw) as Order[]);
+    } catch {
+      /* stockage indisponible */
+    }
+  }, []);
+
+  const saveOrder = (o: Order) =>
+    setOrders((prev) => {
+      if (prev.some((p) => p.txid === o.txid)) return prev;
+      const next = [o, ...prev].slice(0, 50);
+      try {
+        localStorage.setItem(ORDERS_KEY, JSON.stringify(next));
+      } catch {
+        /* stockage indisponible */
+      }
+      return next;
+    });
 
   const visible = useMemo(
     () => (filter === "ALL" ? CATALOG : CATALOG.filter((r) => r.kind === filter)),
     [filter],
   );
 
-  const pushLog = (line: string) =>
-    setLog((l) => [`[${new Date().toLocaleTimeString("fr-FR")}] ${line}`, ...l].slice(0, 40));
-
-  const buy = (r: Resource, auto: boolean) => {
-    const fee = r.priceBtc * COMMISSION_RATE;
-    const total = r.priceBtc + fee;
-    setBalance((b) => {
-      if (b < total) {
-        pushLog(`solde insuffisant pour ${r.name}`);
-        return b;
-      }
-      setOrders((o) =>
-        [{ id: `${r.id}-${Date.now()}`, name: r.name, kind: r.kind, price: r.priceBtc, at: new Date().toLocaleTimeString("fr-FR") }, ...o].slice(0, 25),
-      );
-      setFees((f) => f + fee);
-      pushLog(`${auto ? "bot" : "manuel"} · achat ${r.kind} ${r.name} — ${fmtBtc(r.priceBtc)} + commission 1 % ${fmtBtc(fee)}`);
-      return b - total;
-    });
-  };
+  const paidSats = orders.reduce((s, o) => s + o.sats, 0);
+  const feeSats = orders.reduce((s, o) => s + o.feeSats, 0);
 
   const copyAddress = async () => {
     try {
@@ -133,29 +164,8 @@ function Index() {
     }
   };
 
-  useEffect(() => {
-    const i = setInterval(() => setHashrate((h) => Math.max(180, Math.round(h + (Math.random() - 0.5) * 60))), 1500);
-    return () => clearInterval(i);
-  }, []);
-
-  useEffect(() => {
-    if (!botOn) return;
-    const i = setInterval(() => {
-      tick.current += 1;
-      const pool = CATALOG.filter((r) => r.priceBtc <= maxPrice && (filter === "ALL" || r.kind === filter));
-      if (pool.length === 0) {
-        pushLog("aucune offre sous le seuil défini");
-        return;
-      }
-      const pick = pool[Math.floor(Math.random() * pool.length)];
-      if (pick) buy(pick, true);
-
-    }, 2600);
-    return () => clearInterval(i);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [botOn, maxPrice, filter]);
-
-  const spent = orders.reduce((s, o) => s + o.price, 0);
+  const btcOf = (eur: number) =>
+    btcEur > 0 ? `₿ ${(eur / btcEur).toFixed(8)}` : "—";
 
   return (
     <div className="min-h-screen grid-bg">
@@ -163,12 +173,14 @@ function Index() {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-5 py-4">
           <div className="btc-chip flex size-9 items-center justify-center rounded-md font-mono text-lg font-bold">₿</div>
           <div className="mr-auto">
-            <h1 className="font-mono text-lg font-bold tracking-tight">MineBot // acquisition autonome</h1>
-            <p className="text-xs text-muted-foreground">UA · IA · ISP · OVH · OVC — réglés en bitcoin</p>
+            <h1 className="font-mono text-lg font-bold tracking-tight">MineBot // acquisition on-chain</h1>
+            <p className="text-xs text-muted-foreground">UA · IA · ISP · OVH · OVC — réglés en bitcoin réel</p>
           </div>
           <div className="panel px-3 py-2 text-right">
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Portefeuille</div>
-            <div className="tabular font-mono text-sm text-primary">{fmtBtc(balance)}</div>
+            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Cours BTC</div>
+            <div className="tabular font-mono text-sm text-primary">
+              {market.data ? fmtEur(market.data.priceEur) : "…"}
+            </div>
           </div>
         </div>
       </header>
@@ -176,68 +188,46 @@ function Index() {
       <main className="mx-auto max-w-6xl space-y-8 px-5 py-8">
         <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { l: "Hashrate simulé", v: `${hashrate} TH/s`, s: "minage fictif" },
-            { l: "Achats robotisés", v: String(orders.length), s: "cette session" },
-            { l: "Dépensé", v: fmtBtc(spent), s: "hors frais réseau" },
-            { l: "Commissions 1 %", v: fmtBtc(fees), s: "versées au site" },
-            { l: "Bot", v: botOn ? "ACTIF" : "ARRÊTÉ", s: `seuil ${fmtBtc(maxPrice)}` },
+            { l: "Bloc courant", v: market.data ? `#${market.data.blockHeight}` : "…", s: "mempool.space" },
+            { l: "Frais rapides", v: market.data ? `${market.data.feeFastSatVb} sat/vB` : "…", s: `medium ${market.data?.feeMediumSatVb ?? "—"} sat/vB` },
+            { l: "Reçu par le site", v: addr.data ? fmtBtc(addr.data.receivedSats) : "…", s: `${addr.data?.txCount ?? 0} transactions on-chain` },
+            { l: "Vos paiements", v: fmtBtc(paidSats), s: `${orders.length} commande(s) · dont ${fmtBtc(feeSats)} de commission` },
           ].map((k) => (
             <div key={k.l} className="panel p-4">
               <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{k.l}</div>
-              <div className={`tabular mt-1 font-mono text-xl font-bold ${k.l === "Bot" && botOn ? "text-success" : ""}`}>{k.v}</div>
+              <div className="tabular mt-1 font-mono text-xl font-bold">{k.v}</div>
               <div className="mt-1 text-xs text-muted-foreground">{k.s}</div>
             </div>
           ))}
         </section>
 
-        <section className="panel glow flex flex-wrap items-center gap-4 p-5">
-          <button
-            onClick={() => {
-              setBotOn((b) => !b);
-              pushLog(botOn ? "bot arrêté" : "bot démarré — achats automatiques toutes les 2,6 s");
-            }}
-            className={`rounded-md px-5 py-2.5 font-mono text-sm font-bold transition-colors ${
-              botOn ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : "btc-chip hover:opacity-90"
-            }`}
-          >
-            {botOn ? "■ Arrêter le bot" : "▶ Lancer le bot d'achat"}
-          </button>
-          <label className="flex min-w-56 flex-1 flex-col gap-1">
-            <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
-              Prix maximum par achat · <span className="tabular font-mono text-primary">{fmtBtc(maxPrice)}</span>
-            </span>
-            <input
-              type="range"
-              min={0.00003}
-              max={0.0014}
-              step={0.00001}
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(Number(e.target.value))}
-              className="accent-primary"
-            />
-          </label>
-          <span className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className={`size-2 rounded-full ${botOn ? "bg-success animate-pulse-dot" : "bg-muted-foreground"}`} />
-            simulation — aucun bitcoin réel n'est transféré
-          </span>
-        </section>
-
-        <section className="panel flex flex-wrap items-center gap-3 p-5">
+        <section className="panel glow flex flex-wrap items-center gap-3 p-5">
           <div className="min-w-0 flex-1">
             <h2 className="font-mono text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              Commission du site · 1 % par achat
+              Commission réelle du site · 1 % par achat
             </h2>
             <p className="mt-1 break-all font-mono text-xs text-accent">{COMMISSION_ADDRESS}</p>
             <p className="mt-1 text-[11px] text-muted-foreground">
-              Chaque achat prélève 1 % en BTC, envoyé à cette adresse.
+              Chaque paiement est envoyé on-chain à cette adresse : prix de la ressource + 1 % de commission.
+              Solde actuel {addr.data ? fmtBtc(addr.data.balanceSats) : "…"}.
             </p>
           </div>
-          <button
-            onClick={copyAddress}
-            className="rounded-md border border-primary/40 bg-primary/10 px-3 py-2 font-mono text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
-          >
-            {copiedAddr ? "copié ✓" : "copier l'adresse"}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={copyAddress}
+              className="rounded-md border border-primary/40 bg-primary/10 px-3 py-2 font-mono text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
+            >
+              {copiedAddr ? "copié ✓" : "copier l'adresse"}
+            </button>
+            <a
+              href={`https://mempool.space/address/${COMMISSION_ADDRESS}`}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-md border border-border px-3 py-2 font-mono text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              explorer
+            </a>
+          </div>
         </section>
 
         <section className="space-y-4">
@@ -248,7 +238,7 @@ function Index() {
             ))}
           </div>
           <p className="text-xs text-muted-foreground">
-            {filter === "ALL" ? "Toutes les catégories de ressources minables." : KINDS.find((k) => k.key === filter)?.hint}
+            {filter === "ALL" ? "Toutes les catégories de ressources disponibles." : KINDS.find((k) => k.key === filter)?.hint}
           </p>
 
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
@@ -262,55 +252,58 @@ function Index() {
                     <h3 className="mt-2 font-mono text-sm font-semibold">{r.name}</h3>
                     <p className="text-xs text-muted-foreground">{r.detail}</p>
                   </div>
-                  <div className="tabular text-right font-mono text-sm text-primary">{fmtBtc(r.priceBtc)}</div>
+                  <div className="text-right">
+                    <div className="tabular font-mono text-sm text-primary">{fmtEur(r.priceEur)}</div>
+                    <div className="tabular font-mono text-[10px] text-muted-foreground">{btcOf(r.priceEur)}</div>
+                  </div>
                 </div>
                 <div className="tabular flex items-center gap-4 text-[11px] text-muted-foreground">
                   <span>stock {r.stock}</span>
                   <span>latence {r.latency} ms</span>
                 </div>
                 <button
-                  onClick={() => buy(r, false)}
-                  className="rounded-md border border-primary/40 bg-primary/10 px-3 py-2 font-mono text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
+                  disabled={btcEur <= 0}
+                  onClick={() =>
+                    setCheckout({ id: r.id, kind: r.kind, name: r.name, priceEur: r.priceEur })
+                  }
+                  className="rounded-md border border-primary/40 bg-primary/10 px-3 py-2 font-mono text-xs font-semibold text-primary transition-colors hover:bg-primary/20 disabled:opacity-40"
                 >
-                  Acheter en BTC
+                  Payer en BTC
                 </button>
               </article>
             ))}
           </div>
         </section>
 
-        <section className="grid gap-4 lg:grid-cols-2">
-          <div className="panel p-5">
-            <h2 className="font-mono text-sm font-bold uppercase tracking-widest text-muted-foreground">Journal du bot</h2>
-            <ul className="mt-3 max-h-72 space-y-1 overflow-auto font-mono text-xs">
-              {log.map((l, i) => (
-                <li key={i} className="border-b border-border/50 pb-1 text-muted-foreground">
-                  {l}
+        <section className="panel p-5">
+          <h2 className="font-mono text-sm font-bold uppercase tracking-widest text-muted-foreground">
+            Commandes payées (vérifiées on-chain)
+          </h2>
+          {orders.length === 0 ? (
+            <p className="mt-3 text-xs text-muted-foreground">Aucun paiement enregistré sur cet appareil.</p>
+          ) : (
+            <ul className="mt-3 space-y-2">
+              {orders.map((o) => (
+                <li key={o.txid} className="flex flex-wrap items-center gap-2 border-b border-border/50 pb-2 text-xs">
+                  <span className="font-mono text-accent">{o.kind}</span>
+                  <span className="mr-auto truncate">{o.name}</span>
+                  <span className="tabular font-mono text-primary">{fmtBtc(o.sats)}</span>
+                  <span className="tabular text-muted-foreground">{o.at}</span>
+                  <a
+                    className="w-full truncate font-mono text-[10px] text-muted-foreground underline"
+                    href={`https://mempool.space/tx/${o.txid}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {o.txid}
+                  </a>
                 </li>
               ))}
             </ul>
-          </div>
-          <div className="panel p-5">
-            <h2 className="font-mono text-sm font-bold uppercase tracking-widest text-muted-foreground">Commandes</h2>
-            {orders.length === 0 ? (
-              <p className="mt-3 text-xs text-muted-foreground">Aucun achat pour le moment.</p>
-            ) : (
-              <ul className="mt-3 max-h-72 space-y-2 overflow-auto">
-                {orders.map((o) => (
-                  <li key={o.id} className="flex items-center justify-between gap-2 border-b border-border/50 pb-2 text-xs">
-                    <span className="font-mono text-accent">{o.kind}</span>
-                    <span className="mr-auto truncate">{o.name}</span>
-                    <span className="tabular font-mono text-primary">{fmtBtc(o.price)}</span>
-                    <span className="tabular text-muted-foreground">{o.at}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          )}
         </section>
 
         <TermuxMiner />
-
 
         <section className="space-y-4">
           <div>
@@ -336,8 +329,29 @@ function Index() {
       </main>
 
       <footer className="border-t border-border px-5 py-6 text-center text-xs text-muted-foreground">
-        Démonstration fonctionnelle · données fictives · aucun paiement bitcoin réel
+        Paiements Bitcoin réels on-chain · cours et frais via mempool.space · livraison des ressources effectuée manuellement
       </footer>
+
+      {checkout && btcEur > 0 && (
+        <RealCheckout
+          item={checkout}
+          address={COMMISSION_ADDRESS}
+          commissionRate={COMMISSION_RATE}
+          priceEur={btcEur}
+          onClose={() => setCheckout(null)}
+          onPaid={({ txid, sats, feeSats: fee }) =>
+            saveOrder({
+              id: checkout.id,
+              name: checkout.name,
+              kind: checkout.kind,
+              txid,
+              sats,
+              feeSats: fee,
+              at: new Date().toLocaleString("fr-FR"),
+            })
+          }
+        />
+      )}
     </div>
   );
 }
